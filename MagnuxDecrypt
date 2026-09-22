@@ -30,7 +30,7 @@ def exibir_banner():
     banner = f"""
 {Fore.CYAN}╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
-║   🔐  TESTADOR DE SENHAS COM WORDLIST  🔐                 ║
+║                 🔐   MagnuxDecrypt  🔐                     ║
 ║                                                          ║
 ║   Use apenas para fins de testes autorizados.            ║
 ║                                                          ║
