@@ -1,0 +1,603 @@
+#!/usr/bin/env python3
+"""
+testador.py — Testador de Senhas com Wordlist
+─────────────────────────────────────────────
+Uso autorizado apenas em sistemas que você possui/permissão de teste.
+"""
+
+import hashlib
+import sys
+import time
+from datetime import datetime
+
+try:
+    from colorama import Fore, Style, init
+    init(autoreset=True)
+except ImportError:
+    # Fallback caso colorama não esteja instalado
+    class FakeColor:
+        def __getattr__(self, name): return ""
+    Fore = FakeColor()
+    Style = FakeColor()
+    def init(*a, **k): pass
+
+
+# ═══════════════════════════════════════════════════
+#  BANNER
+# ═══════════════════════════════════════════════════
+
+def exibir_banner():
+    banner = f"""
+{Fore.CYAN}╔══════════════════════════════════════════════════════════╗
+║                                                          ║
+║                 🔐   MagnuxDecrypt  🔐                     ║
+║                                                          ║
+║   Use apenas para fins de testes autorizados.            ║
+║                                                          ║
+╚══════════════════════════════════════════════════════════╝
+{Style.RESET_ALL}"""
+    print(banner)
+
+
+# ═══════════════════════════════════════════════════
+#  FUNÇÕES AUXILIARES
+# ═══════════════════════════════════════════════════
+
+def carregar_wordlist(caminho: str) -> list:
+    """Carrega linhas de um arquivo como lista de senhas."""
+    try:
+        with open(caminho, "r", encoding="utf-8", errors="ignore") as f:
+            return [linha.strip() for linha in f if linha.strip()]
+    except FileNotFoundError:
+        print(f"{Fore.RED}[ERRO] Arquivo não encontrado: {caminho}{Style.RESET_ALL}")
+        return []
+    except Exception as e:
+        print(f"{Fore.RED}[ERRO] {e}{Style.RESET_ALL}")
+        return []
+
+
+def gerar_hash(texto: str, algoritmo: str = "sha256") -> str:
+    """Gera o hash hex de um texto."""
+    h = hashlib.new(algoritmo)
+    h.update(texto.encode("utf-8"))
+    return h.hexdigest()
+
+
+def verificar_senha(senha: str, hash_objetivo: str, algoritmo: str) -> bool:
+    """Compara hash da senha com hash alvo (case-insensitive)."""
+    return gerar_hash(senha, algoritmo).lower() == hash_objetivo.lower()
+
+
+def barra_progresso(atual: int, total: int, largura: int = 40) -> str:
+    """Barra de progresso colorida."""
+    pct = atual / total if total > 0 else 0
+    feito = int(largura * pct)
+    vazio = largura - feito
+    bar = f"{Fore.GREEN}{'█' * feito}{Fore.RED}{'░' * vazio}{Style.RESET_ALL}"
+    return f"[{bar}] {pct * 100:.1f}%  ({atual}/{total})"
+
+
+def formatar_tempo(seg: float) -> str:
+    """Formata segundos em texto legível."""
+    if seg < 60:
+        return f"{seg:.3f}s"
+    elif seg < 3600:
+        return f"{int(seg // 60)}m {seg % 60:.1f}s"
+    else:
+        return f"{int(seg // 3600)}h {int((seg % 3600) // 60)}m {seg % 60:.1f}s"
+
+
+def limpar_linha():
+    """Limpa a linha atual do terminal (para sobrescrever a barra)."""
+    sys.stdout.write("\r" + " " * 120 + "\r")
+    sys.stdout.flush()
+
+
+def escolher_algoritmo() -> str:
+    """Escolha interativa do algoritmo de hash."""
+    algoritmos = {
+        "1": "sha256",
+        "2": "sha1",
+        "3": "sha512",
+        "4": "md5",
+        "5": "sha224",
+        "6": "sha384",
+        "7": "blake2b",
+        "8": "blake2s",
+    }
+    print(f"\n{Fore.YELLOW}═══ ALGORITMO DE HASH ═══{Style.RESET_ALL}")
+    for k, v in algoritmos.items():
+        print(f"  [{k}] {v.upper()}")
+    while True:
+        escolha = input(f"{Fore.YELLOW}Escolha (1-8): {Style.RESET_ALL}").strip()
+        if escolha in algoritmos:
+            return algoritmos[escolha]
+        print(f"{Fore.RED}Opção inválida!{Style.RESET_ALL}")
+
+
+def pedir_wordlist() -> list:
+    """Pede o caminho da wordlist e carrega."""
+    caminho = input(
+        f"{Fore.YELLOW}Caminho da wordlist (Enter = wordlist.txt): {Style.RESET_ALL}"
+    ).strip() or "wordlist.txt"
+    palavras = carregar_wordlist(caminho)
+    if palavras:
+        print(f"{Fore.CYAN}[INFO] {len(palavras)} senhas carregadas.{Style.RESET_ALL}")
+    return palavras
+
+
+# ═══════════════════════════════════════════════════
+#  OPÇÃO 1 — GERAR HASH DE UMA SENHA
+# ═══════════════════════════════════════════════════
+
+def opcao_1():
+    """Gera o hash de uma senha para uso posterior."""
+    print(f"\n{Fore.CYAN}╔══════════════════════════════════╗")
+    print(f"║  OPÇÃO 1 — GERAR HASH            ║")
+    print(f"╚══════════════════════════════════╝{Style.RESET_ALL}\n")
+
+    senha = input(f"{Fore.YELLOW}Digite a senha para gerar o hash: {Style.RESET_ALL}").strip()
+    if not senha:
+        print(f"{Fore.RED}[ERRO] Senha vazia!{Style.RESET_ALL}")
+        return
+
+    algoritmo = escolher_algoritmo()
+
+    hash_resultado = gerar_hash(senha, algoritmo)
+
+    print(f"\n{Fore.GREEN}{'═' * 55}")
+    print(f"  Hash gerado com sucesso!")
+    print(f"{'═' * 55}{Style.RESET_ALL}")
+    print(f"  {Fore.YELLOW}Algoritmo : {Fore.WHITE}{algoritmo}")
+    print(f"  {Fore.YELLOW}Senha     : {Fore.WHITE}{senha}")
+    print(f"  {Fore.YELLOW}Hash      : {Fore.WHITE}{hash_resultado}")
+    print(f"{Fore.GREEN}{'═' * 55}{Style.RESET_ALL}\n")
+
+
+# ═══════════════════════════════════════════════════
+#  OPÇÃO 2 — BUSCAR SENHA COM WORDLIST (1 hash)
+# ═══════════════════════════════════════════════════
+
+def opcao_2():
+    """Busca uma senha testando cada entrada da wordlist contra 1 hash."""
+    print(f"\n{Fore.CYAN}╔══════════════════════════════════╗")
+    print(f"║  OPÇÃO 2 — BUSCAR COM WORDLIST   ║")
+    print(f"╚══════════════════════════════════╝{Style.RESET_ALL}\n")
+
+    hash_objetivo = input(
+        f"{Fore.YELLOW}Cole o hash alvo: {Style.RESET_ALL}"
+    ).strip()
+    if not hash_objetivo:
+        print(f"{Fore.RED}[ERRO] Hash vazio!{Style.RESET_ALL}")
+        return
+
+    algoritmo = escolher_algoritmo()
+    palavras = pedir_wordlist()
+    if not palavras:
+        return
+
+    total = len(palavras)
+    print(f"\n{Fore.CYAN}[INFO] Iniciando busca em {total} senhas...{Style.RESET_ALL}\n")
+
+    inicio = time.time()
+    encontrada = False
+
+    for i, palavra in enumerate(palavras, 1):
+        # Atualiza progresso a cada 20 tentativas
+        if i % 20 == 0 or i == 1 or i == total:
+            sys.stdout.write(f"\r{Fore.YELLOW}{barra_progresso(i, total)}")
+            sys.stdout.flush()
+
+        if verificar_senha(palavra, hash_objetivo, algoritmo):
+            encontrada = True
+            tempo_total = time.time() - inicio
+
+            limpar_linha()
+            print(f"{Fore.GREEN}{'═' * 55}")
+            print(f"  ✅  SENHA ENCONTRADA!")
+            print(f"{'═' * 55}{Style.RESET_ALL}")
+            print(f"  {Fore.YELLOW}Senha      : {Fore.WHITE}{palavra}")
+            print(f"  {Fore.YELLOW}Hash       : {Fore.WHITE}{hash_objetivo}")
+            print(f"  {Fore.YELLOW}Algoritmo  : {Fore.WHITE}{algoritmo}")
+            print(f"  {Fore.YELLOW}Tentativas : {Fore.WHITE}{i}/{total}")
+            print(f"  {Fore.YELLOW}Tempo      : {Fore.WHITE}{formatar_tempo(tempo_total)}")
+            print(f"{Fore.GREEN}{'═' * 55}{Style.RESET_ALL}\n")
+            break
+
+    if not encontrada:
+        tempo_total = time.time() - inicio
+        limpar_linha()
+        print(f"{Fore.RED}{'═' * 55}")
+        print(f"  ❌  SENHA NÃO ENCONTRADA NA WORDLIST")
+        print(f"{'═' * 55}{Style.RESET_ALL}")
+        print(f"  {Fore.YELLOW}Tentativas : {Fore.WHITE}{total}")
+        print(f"  {Fore.YELLOW}Tempo      : {Fore.WHITE}{formatar_tempo(tempo_total)}")
+        print(f"  {Fore.YELLOW}Sugestão   : {Fore.WHITE}Use uma wordlist maior ou diferente")
+        print(f"{Fore.RED}{'═' * 55}{Style.RESET_ALL}\n")
+
+
+# ═══════════════════════════════════════════════════
+#  OPÇÃO 3 — BRUTE FORCE SIMPLES (VARIAÇÕES)
+# ═══════════════════════════════════════════════════
+
+def opcao_3():
+    """Testa variações automáticas de uma senha base."""
+    print(f"\n{Fore.CYAN}╔══════════════════════════════════╗")
+    print(f"║  OPÇÃO 3 — BRUTE FORCE (VARIAÇÕES║")
+    print(f"╚══════════════════════════════════╝{Style.RESET_ALL}\n")
+
+    base = input(f"{Fore.YELLOW}Senha base (ex: admin): {Style.RESET_ALL}").strip()
+    if not base:
+        print(f"{Fore.RED}[ERRO] Senha base vazia!{Style.RESET_ALL}")
+        return
+
+    hash_objetivo = input(f"{Fore.YELLOW}Cole o hash alvo: {Style.RESET_ALL}").strip()
+    if not hash_objetivo:
+        print(f"{Fore.RED}[ERRO] Hash vazio!{Style.RESET_ALL}")
+        return
+
+    algoritmo = escolher_algoritmo()
+
+    # ─── Gerar variações ───
+    anos = ["2022", "2023", "2024", "2025"]
+    numeros = ["", "1", "12", "123", "1234", "12345", "123456", "1234567",
+               "00", "01", "02", "03", "04", "05", "69", "100"]
+    caracteres = ["", "!", "@", "#", "$", ".", "*", "&", "-", "_"]
+    misturas = ["1!", "123!", "1234!", "12345!", "123456!",
+                "123@", "1234@", "12345@", "123456@",
+                "123#", "1234#", "12345#", "123456#",
+                "1!", "2!", "3!", "@!", "#!"]
+
+    variacoes = set()
+
+    # Formas básicas
+    variacoes.add(base)
+    variacoes.add(base.upper())
+    variacoes.add(base.lower())
+    variacoes.add(base.capitalize())
+    variacoes.add(base.swapcase())
+    variacoes.add(base[::-1])  # invertido
+    variacoes.add(base * 2)    # repetido
+
+    # Leetspeak
+    leet_map = {'a': '4', 'e': '3', 'i': '1', 'o': '0', 's': '5', 't': '7'}
+    leet = "".join(leet_map.get(c.lower(), c) for c in base)
+    variacoes.add(leet)
+    variacoes.add(leet.upper())
+    variacoes.add(leet.capitalize())
+
+    # + números
+    for num in numeros:
+        variacoes.add(base + num)
+        variacoes.add(base.upper() + num)
+        variacoes.add(base.capitalize() + num)
+        variacoes.add(base.lower() + num)
+        if num:
+            variacoes.add(num + base)
+
+    # + caracteres especiais
+    for char in caracteres:
+        if char:
+            variacoes.add(base + char)
+            variacoes.add(base + char + "1")
+            variacoes.add(base + char + "123")
+            variacoes.add(base + char + "1234")
+
+    # + misturas comuns
+    for mist in misturas:
+        variacoes.add(base + mist)
+        variacoes.add(base.upper() + mist)
+
+    # + anos
+    for ano in anos:
+        variacoes.add(base + ano)
+        variacoes.add(base + "@" + ano)
+        variacoes.add(base.capitalize() + ano)
+        variacoes.add(base.upper() + ano)
+
+    # Baralhar símbolos comuns no meio e no fim
+    simbolos = ["!", "@", "#", "$", "*", "."]
+    for simbolo in simbolos:
+        for suf in ["", "1", "123", "1234", "12345"]:
+            variacoes.add(base + simbolo + suf)
+            variacoes.add(base.upper() + simbolo + suf)
+
+    # Caminhos de teclado
+    adjacencias = {
+        '1': '12q', '2': '123qw', '3': '23we', '4': '34er', '5': '45rt',
+        '6': '56ty', '7': '67yu', '8': '78ui', '9': '89io', '0': '90op',
+        'q': 'qwa1', 'w': 'qwer2', 'e': 'wert3', 'r': 'erty4', 't': 'rtyu5',
+        'y': 'tyui6', 'u': 'yuio7', 'i': 'uiop8', 'o': 'iop9', 'p': 'op0',
+    }
+    if base.lower() in adjacencias:
+        for adj in adjacencias[base.lower()]:
+            variacoes.add(adj + base)
+            variacoes.add(base + adj)
+
+    # Preencher posição das senhas mais comuns no início da wordlist
+    variacoes = sorted(variacoes)
+    total = len(variacoes)
+
+    print(f"\n{Fore.CYAN}[INFO] Geradas {total} variações. Testando...{Style.RESET_ALL}\n")
+
+    inicio = time.time()
+    encontrada = False
+
+    for i, var in enumerate(variacoes, 1):
+        if i % 50 == 0 or i == 1 or i == total:
+            sys.stdout.write(f"\r{Fore.YELLOW}{barra_progresso(i, total)}")
+            sys.stdout.flush()
+
+        if verificar_senha(var, hash_objetivo, algoritmo):
+            encontrada = True
+            tempo_total = time.time() - inicio
+
+            limpar_linha()
+            print(f"{Fore.GREEN}{'═' * 55}")
+            print(f"  ✅  SENHA ENCONTRADA!")
+            print(f"{'═' * 55}{Style.RESET_ALL}")
+            print(f"  {Fore.YELLOW}Variação   : {Fore.WHITE}{var}")
+            print(f"  {Fore.YELLOW}Senha base : {Fore.WHITE}{base}")
+            print(f"  {Fore.YELLOW}Algoritmo  : {Fore.WHITE}{algoritmo}")
+            print(f"  {Fore.YELLOW}Tentativas : {Fore.WHITE}{i}/{total}")
+            print(f"  {Fore.YELLOW}Tempo      : {Fore.WHITE}{formatar_tempo(tempo_total)}")
+            print(f"{Fore.GREEN}{'═' * 55}{Style.RESET_ALL}\n")
+            break
+
+    if not encontrada:
+        tempo_total = time.time() - inicio
+        limpar_linha()
+        print(f"{Fore.RED}{'═' * 55}")
+        print(f"  ❌  NENHUMA VARIAÇÃO ENCONTRADA")
+        print(f"{'═' * 55}{Style.RESET_ALL}")
+        print(f"  {Fore.YELLOW}Tentativas : {Fore.WHITE}{total}")
+        print(f"  {Fore.YELLOW}Tempo      : {Fore.WHITE}{formatar_tempo(tempo_total)}")
+        print(f"  {Fore.YELLOW}Sugestão   : {Fore.WHITE}Tente outra senha base ou use wordlist (Opção 2)")
+        print(f"{Fore.RED}{'═' * 55}{Style.RESET_ALL}\n")
+
+
+# ═══════════════════════════════════════════════════
+#  OPÇÃO 4 — VERIFICAR MÚLTIPLOS HASHES
+# ═══════════════════════════════════════════════════
+
+def opcao_4():
+    """Verifica vários hashes de uma vez contra uma wordlist."""
+    print(f"\n{Fore.CYAN}╔══════════════════════════════════╗")
+    print(f"║  OPÇÃO 4 — MÚLTIPLOS HASHES      ║")
+    print(f"╚══════════════════════════════════╝{Style.RESET_ALL}\n")
+
+    # --- Arquivo de hashes ---
+    print(f"{Fore.YELLOW}Opções para carregar hashes:{Style.RESET_ALL}")
+    print(f"  [1] Digitar manualmente (um por linha, 'vazio' para finalizar)")
+    print(f"  [2] Carregar de arquivo")
+    escolha = input(f"{Fore.YELLOW}Escolha (1-2): {Style.RESET_ALL}").strip()
+
+    hashes = []
+
+    if escolha == "1":
+        print(f"\n{Fore.YELLOW}Digite os hashes (digite 'fim' para parar):{Style.RESET_ALL}")
+        while True:
+            h = input("  > ").strip()
+            if h.lower() in ("fim", "f", ""):
+                if h.lower() == "":
+                    # Enter vazio finaliza
+                    break
+                break
+            if h.lower() == "fim" or h.lower() == "f":
+                break
+            hashes.append(h)
+            print(f"    {Fore.GREEN}Adicionado: {h[:20]}...{Style.RESET_ALL}")
+
+    elif escolha == "2":
+        caminho = input(f"{Fore.YELLOW}Caminho do arquivo de hashes: {Style.RESET_ALL}").strip()
+        hashes = carregar_wordlist(caminho)
+    else:
+        print(f"{Fore.RED}Opção inválida!{Style.RESET_ALL}")
+        return
+
+    if not hashes:
+        print(f"{Fore.RED}[ERRO] Nenhum hash informado!{Style.RESET_ALL}")
+        return
+
+    algoritmo = escolher_algoritmo()
+    palavras = pedir_wordlist()
+    if not palavras:
+        return
+
+    print(f"\n{Fore.CYAN}[INFO] {len(hashes)} hashes | {len(palavras)} senhas")
+    print(f"[INFO] Total de combinações: {len(hashes) * len(palavras)}")
+    print(f"[INFO] Iniciando verificação...{Style.RESET_ALL}\n")
+
+    inicio = time.time()
+    encontrados = 0
+    nao_encontrados = 0
+    resultados = []
+
+    total_trabalho = len(hashes) * len(palavras)
+    feito = 0
+
+    for hash_atual in hashes:
+        encontrado = False
+        for palavra in palavras:
+            feito += 1
+            if feito % 100 == 0:
+                sys.stdout.write(
+                    f"\r{Fore.YELLOW}{barra_progresso(feito, total_trabalho)}"
+                )
+                sys.stdout.flush()
+
+            if verificar_senha(palavra, hash_atual, algoritmo):
+                resultados.append((hash_atual, palavra))
+                encontrado = True
+                break
+
+        if encontrado:
+            encontrados += 1
+        else:
+            nao_encontrados += 1
+
+    tempo_total = time.time() - inicio
+    limpar_linha()
+
+    # ─── Exibir resultados ───
+    print(f"\n{Fore.GREEN}{'═' * 60}")
+    print(f"  RESULTADOS — {len(hashes)} HASHES VERIFICADOS")
+    print(f"{'═' * 60}{Style.RESET_ALL}")
+
+    if resultados:
+        print(f"\n  {Fore.GREEN}✅ SENHAS ENCONTRADAS ({encontrados}):{Style.RESET_ALL}\n")
+        for i, (h, senha) in enumerate(resultados, 1):
+            print(f"    {i}. {Fore.WHITE}{senha}")
+            print(f"       {Fore.YELLOW}hash: {h}{Style.RESET_ALL}")
+
+    if nao_encontrados > 0:
+        print(f"\n  {Fore.RED}❌ NÃO ENCONTRADAS ({nao_encontrados}):{Style.RESET_ALL}")
+        for h in hashes:
+            encontrou = any(h == hr for hr, _ in resultados)
+            if not encontrou:
+                print(f"    - {h}")
+
+    print(f"\n{Fore.CYAN}{'═' * 60}")
+    print(f"  Encontradas : {encontrados}/{len(hashes)}")
+    print(f"  Não encontr.: {nao_encontrados}/{len(hashes)}")
+    print(f"  Tempo       : {formatar_tempo(tempo_total)}")
+    print(f"{Fore.CYAN}{'═' * 60}{Style.RESET_ALL}\n")
+
+
+# ═══════════════════════════════════════════════════
+#  OPÇÃO 5 — ESTATÍSTICAS DA WORDLIST
+# ═══════════════════════════════════════════════════
+
+def opcao_5():
+    """Exibe estatísticas detalhadas da wordlist."""
+    print(f"\n{Fore.CYAN}╔══════════════════════════════════╗")
+    print(f"║  OPÇÃO 5 — ESTATÍSTICAS          ║")
+    print(f"╚══════════════════════════════════╝{Style.RESET_ALL}\n")
+
+    caminho = input(
+        f"{Fore.YELLOW}Caminho da wordlist (Enter = wordlist.txt): {Style.RESET_ALL}"
+    ).strip() or "wordlist.txt"
+
+    palavras = carregar_wordlist(caminho)
+    if not palavras:
+        print(f"{Fore.RED}[ERRO] Wordlist vazia ou não encontrada!{Style.RESET_ALL}")
+        return
+
+    total = len(palavras)
+    tamanhos = [len(p) for p in palavras]
+    unicas = len(set(palavras))
+    duplicadas = total - unicas
+
+    # Análise de caracteres
+    tem_letra_maiuscula = sum(1 for p in palavras if any(c.isupper() for c in p))
+    tem_letra_minuscula = sum(1 for p in palavras if any(c.islower() for c in p))
+    tem_numero = sum(1 for p in palavras if any(c.isdigit() for c in p))
+    tem_especial = sum(1 for p in palavras if any(not c.isalnum() for c in p))
+    apenas_minusculas = sum(1 for p in palavras if p.islower() and not any(c.isdigit() for c in p))
+
+    # Distribuição por tamanho
+    distribuicao = {}
+    for tam in tamanhos:
+        distribuicao[tam] = distribuicao.get(tam, 0) + 1
+
+    # Top 10 mais frequentes
+    from collections import Counter
+    contador = Counter(palavras)
+    top_10 = contador.most_common(10)
+
+    # Duplicatas
+    duplicatas_top = [(senha, count) for senha, count in contador.items() if count > 1]
+    duplicatas_top.sort(key=lambda x: x[1], reverse=True)
+
+    # Exibir resultados
+    print(f"{Fore.GREEN}{'═' * 55}")
+    print(f"  📊 ESTATÍSTICAS DA WORDLIST")
+    print(f"{'═' * 55}{Style.RESET_ALL}")
+
+    print(f"\n  {Fore.YELLOW}📂 Arquivo     : {Fore.WHITE}{caminho}")
+    print(f"  {Fore.YELLOW}📝 Total       : {Fore.WHITE}{total} senhas")
+    print(f"  {Fore.YELLOW}🔒 Únicas      : {Fore.WHITE}{unicas}")
+    print(f"  {Fore.YELLOW}🔄 Duplicadas  : {Fore.WHITE}{duplicadas}")
+
+    print(f"\n  {Fore.YELLOW}📏 Tamanho mínimo  : {Fore.WHITE}{min(tamanhos)} caracteres")
+    print(f"  {Fore.YELLOW}📏 Tamanho máximo  : {Fore.WHITE}{max(tamanhos)} caracteres")
+    print(f"  {Fore.YELLOW}📏 Tamanho médio   : {Fore.WHITE}{sum(tamanhos) / total:.1f} caracteres")
+    print(f"  {Fore.YELLOW}📏 Tamanho mediano : {Fore.WHITE}{sorted(tamanhos)[total // 2]} caracteres")
+
+    # ─── Distribuição por tamanho ───
+    print(f"\n  {Fore.YELLOW}📊 Distribuição por tamanho:{Style.RESET_ALL}")
+    for tam in sorted(distribuicao.keys()):
+        qtd = distribuicao[tam]
+        barra_len = int(40 * qtd / max(distribuicao.values()))
+        barra = f"{Fore.CYAN}{'█' * barra_len}{Style.RESET_ALL}"
+        print(f"    {tam:>3} char | {barra} {qtd} ({qtd / total * 100:.1f}%)")
+
+    # ─── Composição ───
+    print(f"\n  {Fore.YELLOW}🔤 Composição:{Style.RESET_ALL}")
+    print(f"    Letras maiúsculas  : {tem_letra_maiuscula} ({tem_letra_maiuscula / total * 100:.1f}%)")
+    print(f"    Letras minúsculas  : {tem_letra_minuscula} ({tem_letra_minuscula / total * 100:.1f}%)")
+    print(f"    Contém números     : {tem_numero} ({tem_numero / total * 100:.1f}%)")
+    print(f"    Caracteres especiais: {tem_especial} ({tem_especial / total * 100:.1f}%)")
+    print(f"    Só minúsculas      : {apenas_minusculas} ({apenas_minusculas / total * 100:.1f}%)")
+
+    # ─── Top 10 ───
+    print(f"\n  {Fore.YELLOW}🏆 Top 10 senhas mais repetidas:{Style.RESET_ALL}")
+    for i, (senha, qtd) in enumerate(top_10, 1):
+        repeticao = f"{Fore.RED}({qtd}x)" if qtd > 1 else ""
+        print(f"    {i:>2}. {Fore.WHITE}{senha:<30} {repeticao}{Style.RESET_ALL}")
+
+    # ─── Duplicatas ───
+    if duplicatas_top:
+        print(f"\n  {Fore.YELLOW}🔄 Senhas duplicadas ({len(duplicatas_top)}):{Style.RESET_ALL}")
+        for senha, qtd in duplicatas_top[:15]:
+            print(f"    - {senha} {Fore.RED}({qtd}x){Style.RESET_ALL}")
+
+    print(f"\n{Fore.GREEN}{'═' * 55}{Style.RESET_ALL}\n")
+
+
+# ═══════════════════════════════════════════════════
+#  MENU PRINCIPAL
+# ═══════════════════════════════════════════════════
+
+def menu():
+    """Menu principal."""
+    exibir_banner()
+
+    while True:
+        print(f"{Fore.YELLOW}╔══════════════════════════════════════╗")
+        print(f"║          MENU PRINCIPAL              ║")
+        print(f"╚══════════════════════════════════════╝{Style.RESET_ALL}")
+        print(f"  {Fore.WHITE}[1] 🔑 Gerar hash de uma senha")
+        print(f"  {Fore.WHITE}[2] 🔍 Buscar senha com wordlist (1 hash)")
+        print(f"  {Fore.WHITE}[3] 💥 Brute force (variações automáticas)")
+        print(f"  {Fore.WHITE}[4] 📋 Verificar múltiplos hashes")
+        print(f"  {Fore.WHITE}[5] 📊 Estatísticas da wordlist")
+        print(f"  {Fore.WHITE}[0] 🚪 Sair")
+        print()
+
+        opcao = input(f"{Fore.YELLOW}Escolha (0-5): {Style.RESET_ALL}").strip()
+
+        if opcao == "1":
+            opcao_1()
+        elif opcao == "2":
+            opcao_2()
+        elif opcao == "3":
+            opcao_3()
+        elif opcao == "4":
+            opcao_4()
+        elif opcao == "5":
+            opcao_5()
+        elif opcao == "0":
+            print(f"\n{Fore.GREEN}👋 Até logo!{Style.RESET_ALL}\n")
+            sys.exit(0)
+        else:
+            print(f"{Fore.RED}Opção inválida! Digite 0-5.{Style.RESET_ALL}\n")
+
+
+# ═══════════════════════════════════════════════════
+if __name__ == "__main__":
+    try:
+        menu()
+    except KeyboardInterrupt:
+        print(f"\n{Fore.YELLOW}👋 Interrompido pelo usuário.{Style.RESET_ALL}\n")
+        sys.exit(0)

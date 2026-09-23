@@ -1,0 +1,5 @@
+# 1. Instalar dependência (opcional, mas recomendada)
+pip install colorama
+
+# 2. Executar
+python MagnuxDecrypt.py

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ╔══════════════════════════════════════╗
 ║          MENU PRINCIPAL              ║
 ╚══════════════════════════════════════╝
@@ -30,3 +31,4 @@ Escolha (0-5): 4          ← Múltiplos hashes
 
 Escolha (0-5): 5          ← Estatísticas
   → Total, duplicadas, distribuição, top 10...
+==========================================
